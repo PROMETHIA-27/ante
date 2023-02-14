@@ -48,6 +48,11 @@ pub struct Context<'c> {
     impl_mappings: Vec<Impls>,
 
     next_id: usize,
+
+    /// Unique type Ids generated for *all* types, allowing comparisons between them
+    /// at runtime.
+    type_ids: HashMap<types::Type, usize>,
+    next_type_id: usize,
 }
 
 type Impls = HashMap<VariableId, Impl>;
@@ -99,6 +104,8 @@ impl<'c> Context<'c> {
             impl_mappings: vec![HashMap::new()],
             next_id: 0,
             cache,
+            type_ids: HashMap::new(),
+            next_type_id: 0,
         }
     }
 
@@ -1246,6 +1253,24 @@ impl<'c> Context<'c> {
         }
     }
 
+    fn id_of_type_arg0(&mut self, ptr_type: &types::Type) -> usize {
+        match self.follow_all_bindings(ptr_type) {
+            types::Type::TypeApplication(_, arg_types) => {
+                assert_eq!(arg_types.len(), 1);
+                match self.type_ids.get(&arg_types[0]) {
+                    Some(&id) => id,
+                    None => {
+                        let id = self.next_type_id;
+                        self.type_ids.insert(arg_types[0].clone(), id);
+                        self.next_type_id += 1;
+                        id
+                    },
+                }
+            },
+            _ => unreachable!(),
+        }
+    }
+
     fn convert_builtin(&mut self, args: &[ast::Ast<'c>], result_type: &types::Type) -> hir::Ast {
         use hir::Builtin::*;
         let arg = match &args[0] {
@@ -1318,6 +1343,14 @@ impl<'c> Context<'c> {
                 // We expect (size_of : Type t -> usz), so get the size of t
                 let size = self.size_of_type_arg0(args[1].get_type().unwrap());
                 return int_literal(size as u64, IntegerKind::Usz);
+            },
+
+            // We also know the result of TypeId, so replace *it* with a constant
+            "TypeId" => {
+                let ty = args[1].get_type().unwrap();
+                let id = self.id_of_type_arg0(ty);
+                // TODO: Hash this
+                return int_literal(id as u64, IntegerKind::Usz);
             },
 
             _ => unreachable!("Unknown builtin '{}'", arg),

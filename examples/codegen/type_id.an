@@ -1,0 +1,7 @@
+print (type_id (MkType : Type I32)).id
+print (type_id (MkType : Type String)).id
+
+type Wrapper t = inner: t
+
+print (type_id (MkType : Type (Wrapper I32))).id
+print (type_id (MkType : Type (Wrapper String))).id

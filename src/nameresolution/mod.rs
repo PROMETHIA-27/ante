@@ -540,12 +540,22 @@ impl NameResolver {
         None
     }
 
-    fn validate_type_application<'c>(&self, constructor: &Type, args: &[Type], location: Location<'c>, cache: &mut ModuleCache<'c>) {
+    fn validate_type_application<'c>(
+        &self, constructor: &Type, args: &[Type], location: Location<'c>, cache: &mut ModuleCache<'c>,
+    ) {
         let expected = self.get_expected_type_argument_count(constructor, cache);
         if args.len() != expected && !matches!(constructor, Type::TypeVariable(_)) {
             let plural_s = if expected == 1 { "" } else { "s" };
             let is_are = if args.len() == 1 { "is" } else { "are" };
-            error!(location, "Type {} expects {} argument{}, but {} {} given here", constructor.display(cache), expected, plural_s, args.len(), is_are);
+            error!(
+                location,
+                "Type {} expects {} argument{}, but {} {} given here",
+                constructor.display(cache),
+                expected,
+                plural_s,
+                args.len(),
+                is_are
+            );
         }
 
         // Check argument is an integer/float type (issue #146)
@@ -560,7 +570,7 @@ impl NameResolver {
                     if !matches!(first_arg, Type::Primitive(PrimitiveType::FloatTag(_)) | Type::TypeVariable(_)) {
                         error!(location, "Type {} is not a float type", first_arg.display(cache));
                     }
-                }
+                },
                 _ => (),
             }
         }
@@ -676,11 +686,8 @@ impl<'c> NameResolver {
             ast::Type::Function(args, ret, is_varargs, is_closure, _) => {
                 let parameters = fmap(args, |arg| self.convert_type(cache, arg));
                 let return_type = Box::new(self.convert_type(cache, ret));
-                let environment = Box::new(if *is_closure {
-                    cache.next_type_variable(self.let_binding_level)
-                } else {
-                    Type::UNIT
-                });
+                let environment =
+                    Box::new(if *is_closure { cache.next_type_variable(self.let_binding_level) } else { Type::UNIT });
                 let effects = Box::new(cache.next_type_variable(self.let_binding_level));
                 let is_varargs = *is_varargs;
                 Type::Function(FunctionType { parameters, return_type, environment, is_varargs, effects })

@@ -284,11 +284,20 @@ impl TryCast U64 I64 with
 trait Append a with
     (++): a - a -> a
 
+trait Deref p -> t with
+    deref : p -> t
+
+impl Deref (Ref t) t with 
+    deref p = builtin "Deref" p
+
+impl Deref (Ptr t) t with  
+    deref p = deref <| transmute p
+
 trait Extract collection index -> elem with
     (#): collection - index -> elem
 
 impl Extract (Ptr t) Usz t with
-    (#) ptr index = deref_ptr <| offset ptr index
+    (#) ptr index = deref <| offset ptr index
 
 
 // Bitwise functions
@@ -309,10 +318,17 @@ bxor (x: Int a) (y: Int a) : Int a =
 bnot (x: Int a) : Int a =
     builtin "BitwiseNot" x
 
-
 type Type t = | MkType
 
 size_of (v: Type t) : Usz = builtin "SizeOf" v
+
+type TypeId = 
+    id: Usz
+
+type_id (v: Type t) = TypeId (builtin "TypeId" v)
+
+impl Eq TypeId with
+    (==) l r = l.id == r.id
 
 offset (ptr: Ptr t) (index: Usz) : Ptr t =
     builtin "Offset" ptr index
@@ -320,11 +336,17 @@ offset (ptr: Ptr t) (index: Usz) : Ptr t =
     // new_addr = addr + index * size_of (MkType: Type t)
     // transmute new_addr
 
-deref (x: Ref t) : t =
-    builtin "Deref" x
+ptr_to_ref: Ptr a -> Ref a = transmute
 
-deref_ptr (p: Ptr t) : t =
-    deref <| transmute p
+trait Store p t with 
+    store: p t
+
+impl Store (Ref t) t with 
+    store p t = p := t
+
+impl Store (Ptr t) t with
+    store p t = 
+        (ptr_to_ref p) := t
 
 ptr_store (p: Ptr a) (value: a) : Unit =
     addr: Ref a = transmute p
@@ -332,8 +354,6 @@ ptr_store (p: Ptr a) (value: a) : Unit =
 
 array_insert (p: Ptr a) (index: Usz) (value: a) : Unit =
     offset p index |> ptr_store value
-
-ptr_to_ref: Ptr a -> Ref a = transmute
 
 (@) = deref
 
@@ -443,13 +463,13 @@ print_string (s: String) : Unit =
     loop s (i = 0) ->
         if i < s.length then
             off = offset (s.c_string) i
-            c = deref_ptr off
+            c = @off
             putchar c
             recur s (i + 1)
 
 print_c_string (s: Ptr Char) : Unit =
     loop s (i = 0) ->
-        c = deref_ptr (offset s i)
+        c = @(offset s i)
         if c != '\0' then
             putchar c
             recur s (i + 1)
