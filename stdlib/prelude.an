@@ -339,7 +339,7 @@ offset (ptr: Ptr t) (index: Usz) : Ptr t =
 ptr_to_ref: Ptr a -> Ref a = transmute
 
 trait Store p t with 
-    store: p t
+    store: p - t -> Unit
 
 impl Store (Ref t) t with 
     store p t = p := t
