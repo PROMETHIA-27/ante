@@ -601,9 +601,12 @@ impl Append String with
 
         String buf len
 
+exit_wrapper (exit_code: I32) : a =
+    (transmute exit : I32 -> a) exit_code
+
 panic msg =
     print msg
-    exit 1
+    exit_wrapper 1
 
 impl Extract String Usz Char with
     (#) s index = s.c_string#index
